@@ -1,4 +1,5 @@
 // src/router/index.js
+
 import { showLanding } from '../pages/landing.js'
 import { showRegister } from '../pages/register.js'
 import { showLogin } from '../pages/login.js'
@@ -9,9 +10,9 @@ import { showCompanyDetail } from '../pages/companyDetail.js'
 import { isAuthenticated, logoutUser, isAdmin } from '../services/auth.service.js'
 import { showDashboardAdmin } from '../pages/dashboardAdmin.js'
 
-// Function goto
+// Navigate to a hash
 const goto = (h) => { if (location.hash !== h) location.hash = h }
-// Function redirectToLogin
+// Redirect unauthenticated users to login and preserve target
 const redirectToLogin = (target) => goto(`#/login?r=${encodeURIComponent(target)}`)
 
 const routes = new Map([
@@ -21,7 +22,7 @@ const routes = new Map([
   ['#/dashboard',      { handler: showDashboardCustomer, auth: true }],
   ['#/dashboardAdmin', { handler: showDashboardAdmin,  auth: true, admin: true }],
   ['#/logout',         { handler: () => { logoutUser(); goto('#/login') } }],
-  ['#/about',            { handler: showAboutUs }],
+  ['#/about',          { handler: showAboutUs }],
   ['#/404',            { handler: showNotFound }],
 ])
 
@@ -29,9 +30,8 @@ const dynamicRoutes = [
   { pattern: /^#\/company\/(\d+)$/, auth: true, handler: (m) => showCompanyDetail(m[1]) },
 ]
 
-// Export for other files
+// Start router
 export function startRouter() {
-// Function router
   function router() {
     const raw   = location.hash || '#/'
     const path  = raw.split('?')[0]
@@ -80,5 +80,3 @@ export function startRouter() {
   addEventListener('hashchange', router)
   router()
 }
-
-

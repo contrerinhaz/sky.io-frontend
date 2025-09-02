@@ -1,9 +1,11 @@
-
 // src/pages/404.js
+
+// Render the 404 page
 export function showNotFound() {
   const app = document.getElementById('app')
-  const isAuthed = !!localStorage.getItem('auth_token')
+  const isAuthed = !!localStorage.getItem('auth_token') // auth flag available if CTAs need to vary
 
+  // CTA markup
   const ctas = `
       <a href="#/"
         class="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-white/10 text-white border border-white/15 hover:bg-white/20 transition">
@@ -14,6 +16,7 @@ export function showNotFound() {
         Crear cuenta
       </a>`
 
+  // Inject page content
   app.innerHTML = `
 
     <div class="px-4 pt-16 pb-[calc(var(--footer-h,0px)+24px)]">

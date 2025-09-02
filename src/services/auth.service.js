@@ -1,10 +1,10 @@
-// Simple comments added for clarity. No logic changed.
 // src/services/auth.service.js
 const API_BASE = import.meta.env.VITE_API_BASE + '/api/auth'
 
-/* ===== Helpers para dashboard admin local ===== */
+// Admin dashboard local helpers
 const K_USERS = 'adm_users'
-// Function upsertLocalUser
+
+// Upsert a user into local catalog
 function upsertLocalUser(u) {
   try {
     const list = JSON.parse(localStorage.getItem(K_USERS) || '[]')
@@ -24,10 +24,10 @@ function upsertLocalUser(u) {
   } catch {}
 }
 
-/* ===== Registro ===== */
+// Register
 export async function registerUser({ name, email, password }) {
   if (!name || !email || !password) throw new Error('Todos los campos son obligatorios.')
-// API request
+  // API request
   const res = await fetch(`${API_BASE}/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -37,14 +37,14 @@ export async function registerUser({ name, email, password }) {
   if (!res.ok) throw new Error(data.error || 'Error en el registro')
   localStorage.setItem('auth_token', data.token)
   localStorage.setItem('auth_user', JSON.stringify(data.user))
-  // añade al “catálogo” local de admin
+  // add user to local admin list
   upsertLocalUser(data.user)
   return data.user
 }
 
-/* ===== Login ===== */
+// Login
 export async function loginUser(email, password) {
-// API request
+  // API request
   const res = await fetch(`${API_BASE}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -54,24 +54,24 @@ export async function loginUser(email, password) {
   if (!res.ok) throw new Error(data.error || 'Credenciales inválidas')
   localStorage.setItem('auth_token', data.token)
   localStorage.setItem('auth_user', JSON.stringify(data.user))
-  // asegura presencia en el catálogo local
+  // ensure user exists in local catalog
   upsertLocalUser(data.user)
   return data.user
 }
 
-/* ===== Logout ===== */
+// Logout
 export function logoutUser() {
   localStorage.removeItem('auth_token')
   localStorage.removeItem('auth_user')
   localStorage.removeItem('units')
 }
 
-/* ===== User actual ===== */
+// Current user
 export function getCurrentUser() {
   try { return JSON.parse(localStorage.getItem('auth_user')) } catch { return null }
 }
 
-/* ===== Auth ===== */
+// Auth
 export function isAuthenticated() {
   const t = localStorage.getItem('auth_token')
   if (!t) return false
@@ -82,14 +82,14 @@ export function isAuthenticated() {
   return !!t
 }
 
-// Export for other files
+// Get raw token
 export function getToken() {
   return localStorage.getItem('auth_token') || ''
 }
 
-// Export for other files
+// Is admin
 export function isAdmin() {
-// Function u
+  // read user object from storage
   const u = (() => { try { return JSON.parse(localStorage.getItem('auth_user')) } catch { return null } })()
   return (u?.role || '').toString().toLowerCase() === 'admin'
 }

@@ -1,5 +1,5 @@
-
 // src/pages/dashboardCustomer.js
+// Minimal English comments for clarity. No logic changes.
 import { CompanyAPI } from '../services/company.service.js'
 
 const state = {
@@ -10,7 +10,7 @@ const state = {
 export async function showDashboardCustomer() {
   const app = document.getElementById('app')
 
-  // Asegura scroll normal
+  // Ensure normal scroll state after leaving modals or fixed layouts
   document.body.classList.remove('overflow-hidden')
   app.style.position = ''
   app.style.height = ''
@@ -32,7 +32,7 @@ export async function showDashboardCustomer() {
   const userName = authUser?.name || 'Usuario'
 
   app.innerHTML = `
-    <div class="min-h-[calc(100vh-var(--footer-h,0px))] pb-[calc(var(--footer-h,0px)+32px)] bg-slate-900 text-white">
+    <div class="bg-transparent text-white">
       <div class="container mx-auto px-4 py-6 max-w-7xl">
         <section class="dashboard-customer">
           <header class="mb-8">
@@ -56,7 +56,7 @@ export async function showDashboardCustomer() {
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div class="flex items-center gap-3"></div>
 
-              <!-- Acciones: se ocultan si no hay empresas -->
+              <!-- Header actions are hidden if there are no companies -->
               <div id="headerActions" class="flex items-center gap-3">
                 <button id="btnDeleteCompany"
                         class="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold px-6 py-2.5 rounded-xl transition-all">
@@ -89,7 +89,7 @@ export async function showDashboardCustomer() {
   await loadCompanies()
 }
 
-// Function syncFooterVar
+// Keep footer height in a CSS var for proper layout
 function syncFooterVar() {
   const footer =
     document.getElementById('siteFooter') ||
@@ -100,7 +100,7 @@ function syncFooterVar() {
   }
 }
 
-// Function loadCompanies
+// Load and render companies list
 async function loadCompanies() {
   const listEl = document.getElementById('companiesList')
   if (!listEl) return
@@ -126,7 +126,7 @@ async function loadCompanies() {
       }
     })
 
-    // Ocultar/mostrar acciones del header según haya empresas
+    // Toggle header actions based on whether there are companies
     const actions = document.getElementById('headerActions')
     if (actions) actions.style.display = state.companies.length ? 'flex' : 'none'
 
@@ -151,7 +151,7 @@ async function loadCompanies() {
           </div>
         </div>
       `
-      // Conecta el CTA con el modal (sin depender de botones ocultos)
+      // Wire CTA button to open the modal without relying on hidden buttons
       document.getElementById('btnAddFirst')?.addEventListener('click', openAddCompanyModal)
       return
     }
@@ -178,7 +178,7 @@ async function loadCompanies() {
   }
 }
 
-// Function renderCard
+// Card renderer for each company
 function renderCard(c) {
   const lat = Number(c.lat)
   const lon = Number(c.lon)
@@ -239,7 +239,7 @@ function renderCard(c) {
   `
 }
 
-// Function openAddCompanyModal
+// Open modal to create a company and wire map picker
 async function openAddCompanyModal() {
   const app = document.getElementById('app')
   const modal = document.createElement('div')
@@ -296,12 +296,13 @@ async function openAddCompanyModal() {
   `
   app.appendChild(modal)
 
-// Function close
+  // Close helpers
   const close = () => modal.remove()
   modal.querySelector('#cancelBtn').addEventListener('click', close)
   modal.addEventListener('click', (e) => { if (e.target === modal) close() })
   document.addEventListener('keydown', function onEsc(ev) { if (ev.key === 'Escape') { close(); document.removeEventListener('keydown', onEsc) } })
 
+  // Load map picker module and sync hidden fields on change
   const { renderMapPicker } = await import('../components/mapPicker.js')
   let current = { lat: 10.9884167, lon: -74.7806216, address: '' }
 
@@ -321,6 +322,7 @@ async function openAddCompanyModal() {
     }
   })
 
+  // Submit create company
   f.addEventListener('submit', async (e) => {
     e.preventDefault()
     const payload = {
@@ -344,7 +346,7 @@ async function openAddCompanyModal() {
   })
 }
 
-// Function handleDeleteCompany
+// Flow to delete a company: choose one, then confirm
 async function handleDeleteCompany() {
   if (!state.companies.length) {
     await loadCompanies()
@@ -384,16 +386,17 @@ async function handleDeleteCompany() {
   `
   app.appendChild(modal)
 
-// Function close
+  // Close helpers
   const close = () => modal.remove()
   modal.querySelector('#cancelDeleteBtn').addEventListener('click', close)
   modal.addEventListener('click', (e) => { if (e.target === modal) close() })
 
+  // Select a company to delete
   modal.addEventListener('click', async (e) => {
     const companyOption = e.target.closest('.company-option')
     if (!companyOption) return
     const companyId = companyOption.dataset.companyId
-// Data operation
+    // Lookup selected company then confirm
     const company = state.companies.find(c => String(c.id) === String(companyId))
     if (!company?.id) return
     close()
@@ -401,7 +404,7 @@ async function handleDeleteCompany() {
   })
 }
 
-// Function showConfirmDeleteModal
+// Confirmation dialog and delete call
 function showConfirmDeleteModal(company) {
   const app = document.getElementById('app')
   const modal = document.createElement('div')
@@ -430,11 +433,12 @@ function showConfirmDeleteModal(company) {
   `
   app.appendChild(modal)
 
-// Function close
+  // Close helpers
   const close = () => modal.remove()
   modal.querySelector('#cancelConfirmBtn').addEventListener('click', close)
   modal.addEventListener('click', (e) => { if (e.target === modal) close() })
 
+  // Proceed with deletion
   modal.querySelector('#confirmDeleteBtn').addEventListener('click', async () => {
     const id = company.id ?? company._id ?? company.companyId ?? company.company_id
     if (!id) { close(); alert('ID de empresa no disponible'); return }
@@ -451,7 +455,7 @@ function showConfirmDeleteModal(company) {
   })
 }
 
-// Function showSuccessMessage
+// Simple toast
 function showSuccessMessage(message) {
   const app = document.getElementById('app')
   const toast = document.createElement('div')

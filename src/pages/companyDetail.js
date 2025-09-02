@@ -1,17 +1,16 @@
-
 // src/pages/companyDetail.js
 import { CompanyAPI } from '../services/company.service.js'
 import { API_BASE } from '../services/config.js'
 
-/* ------------ helpers SOLO para guardar historial en SQL ------------ */
+/* helpers to persist history in SQL */
 function getUserId() {
   const auth = JSON.parse(localStorage.getItem('auth_user') || 'null')
   return auth?.id ?? localStorage.getItem('user_id') ?? 1
 }
-// Function saveHistorySQL
+// Save history to backend
 async function saveHistorySQL(companyId, item) {
   const base = String(API_BASE || '/api').replace(/\/+$/,'')
-// API request
+  // API request
   const res = await fetch(`${base}/companies/${encodeURIComponent(companyId)}/history`, {
     method: 'POST',
     headers: {
@@ -24,11 +23,11 @@ async function saveHistorySQL(companyId, item) {
   if (!res.ok) throw new Error(await res.text().catch(()=>`HTTP ${res.status}`))
   return res.json().catch(() => ({}))
 }
-/* ------------------------------------------------------------------- */
 
 export async function showCompanyDetail(id) {
   const app = document.getElementById('app')
 
+  // Loading state
   app.innerHTML = `
     <div class="min-h-screen p-4 lg:p-8">
       <div class="max-w-7xl mx-auto">
@@ -50,7 +49,7 @@ export async function showCompanyDetail(id) {
   renderDetail(app, company, weatherRes, { weatherErr })
 }
 
-// Function showFatal
+// Render fatal error screen
 function showFatal(app, msg) {
   app.innerHTML = `
     <div class="min-h-screen p-4 lg:p-8 flex items-center justify-center">
@@ -67,7 +66,7 @@ function showFatal(app, msg) {
   `
 }
 
-// Function renderDetail
+// Render detail view
 function renderDetail(app, company, { weather, rules }, { weatherErr }) {
   const latN = Number(company.lat)
   const lonN = Number(company.lon)
@@ -174,13 +173,14 @@ function renderDetail(app, company, { weather, rules }, { weatherErr }) {
     </div>
   `
 
+  // Map and actions
   initializeMap(haveCoords ? latN : null, haveCoords ? lonN : null, company.name, company.activity)
 
   document.getElementById('advBtn').addEventListener('click', () => handleAdvancedQuery(company.id, company.activity))
   document.getElementById('historyBtn').addEventListener('click', () => openHistoryModal(company.id))
 }
 
-// Function handleAdvancedQuery
+// Handle advanced query flow
 async function handleAdvancedQuery(id, fallbackActivity) {
   const msg = document.getElementById('advMsg').value.trim()
   if (!msg) return showNotification('Describe tu operación', 'error')
@@ -194,13 +194,13 @@ async function handleAdvancedQuery(id, fallbackActivity) {
   try {
     const res = await CompanyAPI.advancedQuery(id, msg)
 
-    // Normalizamos nombres y GUARDAMOS EN SQL
+    // Normalize names and persist to SQL
     const schedule = res?.schedule ?? null
     const response = res?.recommendations ?? res?.answer ?? 'Sin contenido'
     try {
       await saveHistorySQL(id, { prompt: msg, schedule, response })
     } catch {
-      // fallback local si aún no existe el endpoint
+      // Local fallback if endpoint does not exist yet
       pushHistory(id, { ts: Date.now(), prompt: msg, schedule, response })
     }
 
@@ -217,7 +217,7 @@ async function handleAdvancedQuery(id, fallbackActivity) {
   }
 }
 
-// Function renderAdvResult
+// Render advanced result block
 function renderAdvResult(res, fallbackActivity) {
   const meta = {
     fecha: res?.schedule?.fecha || 'No especificada',
@@ -257,7 +257,7 @@ function renderAdvResult(res, fallbackActivity) {
   `
 }
 
-// Function renderStyledRecommendations
+// Format recommendation sections
 function renderStyledRecommendations(text, risk) {
   const sections = splitSections(text)
 
@@ -295,7 +295,7 @@ function renderStyledRecommendations(text, risk) {
   return blocks.join('')
 }
 
-// Function cardBlock
+// Small card wrapper
 function cardBlock(title, contentHtml, grad, border, icon) {
   return `
     <div class="rounded-xl p-4 bg-gradient-to-r ${grad} border ${border}">
@@ -307,7 +307,7 @@ function cardBlock(title, contentHtml, grad, border, icon) {
   `
 }
 
-// Function splitSections
+// Split raw text into named sections
 function splitSections(txt) {
   const re = /(Riesgos principales|Medidas preventivas|Umbrales y triggers|Umbrales|Checklist breve|Checklist|Nivel de riesgo)\s*:/gi
   const out = []
@@ -322,7 +322,7 @@ function splitSections(txt) {
   return out
 }
 
-// Function listify
+// Turn text into list markup
 function listify(text, mode = 'dot') {
   const lines = text
     .split(/\r?\n/)
@@ -349,14 +349,15 @@ function listify(text, mode = 'dot') {
   const symbol = mode === 'check' ? '✅' : mode === 'alert' ? '⚠️' : mode === 'target' ? '🎯' : '•'
   return `<ul class="space-y-2 ml-1">
     ${items.map((it) => `
-      <li class="flex items-start gap-2 text-sm text-slate-200">
+      <li class="flex items-start gap-2 text-sm text-slate-2
+00">
         <span class="mt-0.5">${symbol}</span>
         <span class="leading-relaxed">${sanitize(it)}</span>
       </li>`).join('')}
   </ul>`
 }
 
-// Function extractRisk
+// Extract risk level tag
 function extractRisk(text) {
   const m = text.match(/Nivel de riesgo:\s*(Alto|Medio|Bajo)/i)
   const level = m ? m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() : null
@@ -368,39 +369,39 @@ function extractRisk(text) {
   return level ? { level, ...map[level] } : { level: null }
 }
 
-// Function extractJustification
+// Extract justification text
 function extractJustification(text) {
   const j = text.match(/Justificación:\s*([\s\S]+)/i)
   return j ? j[1].trim() : ''
 }
 
-/* ---------- Historial (localStorage, se usa solo como fallback) ---------- */
+/* History fallback via localStorage */
 const HISTORY_LIMIT = 50
-// Function historyKey
+// Storage key
 const historyKey = (id) => `skycare:advHistory:${id}`
 
-// Function loadHistory
+// Load history
 function loadHistory(id) {
   try { return JSON.parse(localStorage.getItem(historyKey(id)) || '[]') }
   catch { return [] }
 }
-// Function saveHistory
+// Save history
 function saveHistory(id, arr) {
   localStorage.setItem(historyKey(id), JSON.stringify(arr.slice(0, HISTORY_LIMIT)))
 }
-// Function pushHistory
+// Push entry
 function pushHistory(id, item) {
   const arr = loadHistory(id)
   arr.unshift(item)
   saveHistory(id, arr)
 }
 
-// Function clip
+// Clip helper
 function clip(s, n = 140) {
   s = String(s || '')
   return s.length > n ? s.slice(0, n - 1) + '…' : s
 }
-// Function renderHistRow
+// Render one row
 function renderHistRow(it, i) {
   const meta = it.schedule || {}
   const horario = [meta.horaInicio, meta.horaFin].filter(Boolean).join(' - ')
@@ -436,7 +437,7 @@ function renderHistRow(it, i) {
   `
 }
 
-// Function openHistoryModal
+// Open modal with history
 function openHistoryModal(companyId) {
   const items = loadHistory(companyId)
 
@@ -470,7 +471,7 @@ function openHistoryModal(companyId) {
   const prevOverflow = document.body.style.overflow
   document.body.style.overflow = 'hidden'
   document.body.appendChild(modal)
-// Function close
+  // Close modal
   const close = () => { document.body.style.overflow = prevOverflow; modal.remove() }
 
   modal.addEventListener('click', (e) => { if (e.target === modal) close() })
@@ -510,7 +511,7 @@ function openHistoryModal(companyId) {
   }
 }
 
-// Function renderWeather
+// Weather panel
 function renderWeather(w) {
   if (!w) {
     return `<div class="text-center text-gray-400 py-8"><div class="text-4xl mb-4">🌫️</div><div>Datos meteorológicos no disponibles</div></div>`
@@ -538,7 +539,7 @@ function renderWeather(w) {
   `
 }
 
-// Function renderQuickRules
+// Quick rules list
 function renderQuickRules(rules) {
   if (!Array.isArray(rules) || rules.length === 0) {
     return `<div class="text-center text-gray-400 py-8"><div class="text-4xl mb-4">✅</div><div>Condiciones normales de trabajo</div><div class="text-sm mt-2">Seguir procedimientos estándar</div></div>`
@@ -556,13 +557,13 @@ function renderQuickRules(rules) {
   `
 }
 
-// Function getWeatherIcon
+// Weather icon map
 function getWeatherIcon(code) {
   const iconMap = {1000:'☀️',1100:'🌤️',1101:'⛅',1102:'🌥️',1001:'☁️',2000:'🌫️',2100:'🌫️',3000:'💨',3001:'💨',3002:'💨',4000:'🌦️',4200:'🌧️',4001:'🌧️',4201:'⛈️',5000:'🌨️',5100:'❄️',5001:'🌨️',5101:'❄️',6000:'🌨️',6200:'🌨️',6001:'🌨️',7000:'🧊',7102:'🧊',7101:'🧊',8000:'⛈️'}
   return iconMap[code] || '🌤️'
 }
 
-// Function initializeMap
+// Init map if coords are valid
 function initializeMap(lat, lon, name, activity) {
   const mapEl = document.getElementById('map')
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
@@ -597,15 +598,14 @@ function initializeMap(lat, lon, name, activity) {
   }
 }
 
-// Function isNum
+// Primitives
 function isNum(v) { return typeof v === 'number' && Number.isFinite(v) }
-// Function sanitize
 function sanitize(s) {
   return String(s ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 }
-// Function showNotification
+// Toast helper
 function showNotification(message, type = 'info') {
   const n = document.createElement('div')
   n.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all transform translate-x-full ${

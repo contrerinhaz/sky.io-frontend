@@ -1,10 +1,9 @@
-
 // src/pages/register.js
 import { registerUser } from '../services/auth.service.js'
 
 // Export for other files
 export function showRegister() {
-  // Altura útil por encima del footer fijo
+  // Keep footer height in a CSS var for layout above fixed footer
   const setFooterH = () => {
     const f = document.getElementById('site-footer')
     document.documentElement.style.setProperty('--footer-h', f ? `${f.offsetHeight}px` : '0px')
@@ -12,9 +11,25 @@ export function showRegister() {
   setFooterH()
   window.addEventListener('resize', setFooterH, { passive: true })
 
+  // Icons
+  const eye = (cls='w-5 h-5') => `
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="${cls}" aria-hidden="true">
+  <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+    d="M2.5 12C4.5 7.5 8 5 12 5s7.5 2.5 9.5 7c-2 4.5-5.5 7-9.5 7s-7.5-2.5-9.5-7z"></path>
+  <circle cx="12" cy="12" r="3" stroke-width="2"></circle>
+</svg>`
+  const eyeOff = (cls='w-5 h-5') => `
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="${cls}" aria-hidden="true">
+  <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18"></path>
+  <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+    d="M2.5 12c.64-1.58 1.57-2.95 2.68-4.04M21.5 12c-.64 1.58-1.57 2.95-2.68 4.04"></path>
+  <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+    d="M8.5 8.5A7.9 7.9 0 0112 8c4 0 7.5 2.5 9.5 7-1.04 2.35-2.5 4.1-4.3 5.16"></path>
+</svg>`
+
   const app = document.getElementById('app')
   app.innerHTML = `
-    <!-- Centro perfecto en el espacio por encima del footer fijo -->
+    <!-- Centered content above the fixed footer -->
     <div class="min-h-[calc(100dvh-var(--footer-h))] grid place-items-center px-4 py-8">
       <div class="w-full max-w-md">
         <div class="glass-card rounded-2xl p-8">
@@ -52,11 +67,19 @@ export function showRegister() {
             </div>
 
             <div class="space-y-2">
-              <input
-                type="password" id="password" required minlength="6" placeholder="Contraseña"
-                class="form-input w-full bg-secondary border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-primary transition-colors"
-                autocomplete="new-password"
-              />
+              <div class="flex items-stretch bg-secondary border border-gray-600 rounded-lg overflow-hidden">
+                <input
+                  type="password" id="password" required minlength="6" placeholder="Contraseña"
+                  class="form-input flex-1 bg-transparent border-0 px-4 py-3 text-white focus:ring-0 focus:outline-none"
+                  autocomplete="new-password"
+                />
+                <button
+                  type="button"
+                  id="togglePassword"
+                  aria-label="Mostrar contraseña"
+                  class="px-3 text-gray-300 hover:bg-white/10 transition-colors"
+                >${eye()}</button>
+              </div>
             </div>
 
             <button
@@ -82,6 +105,27 @@ export function showRegister() {
     </div>
   `
 
+  // Toggle password visibility button
+  ;(() => {
+    let input = document.getElementById('password')
+    const btn = document.getElementById('togglePassword')
+    if (!input || !btn) return
+    btn.addEventListener('click', (e) => {
+      e.preventDefault()
+      const toType = input.type === 'password' ? 'text' : 'password'
+      try {
+        input.type = toType
+      } catch {
+        const clone = input.cloneNode(true)
+        clone.type = toType
+        input.parentNode.replaceChild(clone, input)
+        input = clone
+      }
+      btn.innerHTML = toType === 'text' ? eyeOff() : eye()
+      btn.setAttribute('aria-label', toType === 'text' ? 'Ocultar contraseña' : 'Mostrar contraseña')
+    })
+  })()
+
   const form = document.getElementById('register-form')
   form.addEventListener('submit', async (e) => {
     e.preventDefault()
@@ -89,6 +133,7 @@ export function showRegister() {
     const submitBtn = e.currentTarget.querySelector('button[type="submit"]')
     const originalText = submitBtn.innerHTML
 
+    // Loading UI
     submitBtn.innerHTML = `
       <div class="flex items-center justify-center gap-2">
         <div class="loading-spinner w-5 h-5"></div>
@@ -114,7 +159,7 @@ export function showRegister() {
   })
 }
 
-// Notificaciones (sin template literals para evitar errores de comillas/backticks)
+// Notifications helper
 function showNotification(message, type = 'info') {
   const notification = document.createElement('div')
   const bgColor = type === 'success' ? 'bg-green-500'

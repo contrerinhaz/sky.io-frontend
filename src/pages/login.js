@@ -1,16 +1,13 @@
-
 // src/pages/login.js
 import { loginUser, isAuthenticated, isAdmin } from '../services/auth.service.js'
 
-// Export for other files
 export function showLogin() {
-  // Si ya hay sesión, salta directo según rol
   if (isAuthenticated()) {
     location.hash = isAdmin() ? '#/dashboardAdmin' : '#/dashboard'
     return
   }
 
-  // Ajuste por footer fijo: expone --footer-h
+  // Keep footer height in a CSS var for layout
   const setFooterH = () => {
     const f =
       document.getElementById('site-footer') ||
@@ -20,6 +17,22 @@ export function showLogin() {
   }
   setFooterH()
   window.addEventListener('resize', setFooterH, { passive: true })
+
+  // Icons
+  const eye = (cls='w-5 h-5') => `
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="${cls}" aria-hidden="true">
+  <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+    d="M2.5 12C4.5 7.5 8 5 12 5s7.5 2.5 9.5 7c-2 4.5-5.5 7-9.5 7s-7.5-2.5-9.5-7z"></path>
+  <circle cx="12" cy="12" r="3" stroke-width="2"></circle>
+</svg>`
+  const eyeOff = (cls='w-5 h-5') => `
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="${cls}" aria-hidden="true">
+  <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18"></path>
+  <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+    d="M2.5 12c.64-1.58 1.57-2.95 2.68-4.04M21.5 12c-.64 1.58-1.57 2.95-2.68 4.04"></path>
+  <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+    d="M8.5 8.5A7.9 7.9 0 0112 8c4 0 7.5 2.5 9.5 7-1.04 2.35-2.5 4.1-4.3 5.16"></path>
+</svg>`
 
   const app = document.getElementById('app')
   app.innerHTML = `
@@ -52,11 +65,19 @@ export function showLogin() {
             </div>
 
             <div class="space-y-2">
-              <input 
-                type="password" id="password" required minlength="6" placeholder="Contraseña"
-                class="form-input w-full bg-secondary border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-primary transition-colors"
-                autocomplete="current-password"
-              />
+              <div class="flex items-stretch bg-secondary border border-gray-600 rounded-lg overflow-hidden">
+                <input 
+                  type="password" id="password" required minlength="6" placeholder="Contraseña"
+                  class="form-input flex-1 bg-transparent border-0 px-4 py-3 text-white focus:ring-0 focus:outline-none"
+                  autocomplete="current-password"
+                />
+                <button
+                  type="button"
+                  id="togglePassword"
+                  aria-label="Mostrar contraseña"
+                  class="px-3 text-gray-300 hover:bg-white/10 transition-colors"
+                >${eye()}</button>
+              </div>
             </div>
 
             <button type="submit" class="w-full btn-primary py-3 rounded-lg font-semibold glow-accent transition-all hover:scale-105">
@@ -79,9 +100,28 @@ export function showLogin() {
     </div>
   `
 
-  // Destino tras login:
-  // - Si es admin: siempre #/dashboardAdmin
-  // - Si no es admin: usa ?r= si es seguro; si no, #/dashboard
+  // Toggle password visibility button
+  ;(() => {
+    let input = document.getElementById('password')
+    const btn = document.getElementById('togglePassword')
+    if (!input || !btn) return
+    btn.addEventListener('click', (e) => {
+      e.preventDefault()
+      const toType = input.type === 'password' ? 'text' : 'password'
+      try {
+        input.type = toType
+      } catch {
+        const clone = input.cloneNode(true)
+        clone.type = toType
+        input.parentNode.replaceChild(clone, input)
+        input = clone
+      }
+      btn.innerHTML = toType === 'text' ? eyeOff() : eye()
+      btn.setAttribute('aria-label', toType === 'text' ? 'Ocultar contraseña' : 'Mostrar contraseña')
+    })
+  })()
+
+  // Decide where to send the user after login
   function resolveDestination() {
     if (isAdmin()) return '#/dashboardAdmin'
     const qs = new URLSearchParams((location.hash.split('?')[1] || ''))
@@ -95,7 +135,6 @@ export function showLogin() {
     return '#/dashboard'
   }
 
-  // Envío del formulario
   const form = document.getElementById('login-form')
   form.addEventListener('submit', async (e) => {
     e.preventDefault()
@@ -104,6 +143,7 @@ export function showLogin() {
     if (submitBtn.disabled) return
     const originalText = submitBtn.innerHTML
 
+    // Loading UI
     submitBtn.innerHTML = `
       <div class="flex items-center justify-center gap-2">
         <div class="loading-spinner w-5 h-5"></div>
@@ -116,9 +156,7 @@ export function showLogin() {
     const password = document.getElementById('password').value
 
     try {
-      // loginUser debe guardar token y user (con role) en localStorage
       await loginUser(email, password)
-      // Redirige según rol y ?r=
       location.hash = resolveDestination()
     } catch (error) {
       console.error('Login error:', error)

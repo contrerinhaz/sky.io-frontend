@@ -1,7 +1,6 @@
-
 // src/components/mapPicker.js
 
-// Export for other files
+// Exported function
 export function renderMapPicker(
   container,
   { initial = {}, onChange, country = 'CO', maxMeters = 15 } = {}
@@ -24,7 +23,7 @@ export function renderMapPicker(
   }
   mapboxgl.accessToken = token;
 
-  // Parse seguro
+  // Safe number parse
   const toNum = (v) => {
     const n = Number(v);
     return Number.isFinite(n) ? n : undefined;
@@ -37,7 +36,7 @@ export function renderMapPicker(
   const lng0 = hasInitial ? initLng : -74.7806216;
   const zoom0 = hasInitial ? 16 : 2;
 
-  // Reset anterior
+  // Clean previous map instance
   if (container._map) {
     try { container._map.remove(); } catch {}
     container._map = null;
@@ -61,18 +60,18 @@ export function renderMapPicker(
     .addTo(map);
   container._marker = marker;
 
-  // ---- Emisión consistente ---------------------------------------------------
+  // Consistent event emission
   let seq = 0;
-// Function emit
+  // Emit location change
   const emit = async (lng, lat) => {
     const cur = ++seq;
     const info = await reverseGeocodeStrict(lng, lat, token, { country, maxMeters });
-    if (cur !== seq) return; // descarta respuestas viejas
+    if (cur !== seq) return; // ignore stale responses
 
     onChange?.({
       lat,
       lng,
-      address: info.address,           // '' si no hubo match exacto
+      address: info.address,           // '' if not exact match
       matched: info.matched,
       feature_id: info.feature_id || '',
       map_links: {
@@ -82,7 +81,7 @@ export function renderMapPicker(
     });
   };
 
-  // ---- Click exacto con unproject (ignora transforms del DOM) ---------------
+  // Exact click using unproject (ignores DOM transforms)
   function setFromPixel(x, y) {
     const { lng, lat } = map.unproject([x, y]);
     marker.setLngLat([lng, lat]);
@@ -90,7 +89,7 @@ export function renderMapPicker(
     emit(lng, lat);
   }
 
-// Function clickExact
+  // Click handler mapping exact pixel
   function clickExact(e) {
     const canvas = map.getCanvas();
     const rect = canvas.getBoundingClientRect();
@@ -109,7 +108,7 @@ export function renderMapPicker(
     setFromPixel(x, y);
   }
 
-  // Evita “click fantasma” tras drag
+  // Prevent ghost click after drag
   let dragging = false;
   marker.on('dragstart', () => { dragging = true; });
   marker.on('dragend', () => {
@@ -124,7 +123,7 @@ export function renderMapPicker(
     clickExact(e);
   });
 
-  // ---- Geolocaliza y mueve pin si no hay initial ----------------------------
+  // Geolocate and move pin if no initial coords
   let geolocate;
   if (!hasInitial) {
     geolocate = new mapboxgl.GeolocateControl({
@@ -134,18 +133,18 @@ export function renderMapPicker(
     });
     map.addControl(geolocate, 'top-left');
 
-// Function onGeo
+    // Geolocate callback
     const onGeo = (pos) => {
       const { longitude, latitude } = pos.coords;
       marker.setLngLat([longitude, latitude]);
       map.easeTo({ center: [longitude, latitude], zoom: 16 });
       emit(longitude, latitude);
-      geolocate.off('geolocate', onGeo); // solo una vez
+      geolocate.off('geolocate', onGeo); // one time only
     };
     geolocate.on('geolocate', onGeo);
   }
 
-  // ---- Lifecycle -------------------------------------------------------------
+  // Lifecycle
   map.on('load', () => {
     container.classList.remove('opacity-50');
     if (!hasInitial && geolocate) { try { geolocate.trigger(); } catch {} }
@@ -158,24 +157,24 @@ export function renderMapPicker(
   ro.observe(container);
   map.on('remove', () => ro.disconnect());
 
-  // Estado inicial al montar
+  // Initial emit on mount
   emit(lng0, lat0);
 
   return map;
 }
 
-// Reverse geocoding ESTRICTO: solo 'address' y a ≤ maxMeters del pin.
+// Strict reverse geocoding: address only within ≤ maxMeters
 async function reverseGeocodeStrict(lng, lat, token, { country = 'CO', maxMeters = 15 } = {}) {
   try {
     const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json`);
     url.searchParams.set('access_token', token);
     url.searchParams.set('language', 'es');
     url.searchParams.set('reverseMode', 'distance');
-    url.searchParams.set('types', 'address'); // evita street/place/poi
+    url.searchParams.set('types', 'address'); // avoid street/place/poi
     url.searchParams.set('limit', '10');
     if (country) url.searchParams.set('country', country);
 
-// API request
+    // API request
     const r = await fetch(url.toString());
     if (!r.ok) return { address: '', matched: false };
 
@@ -183,10 +182,10 @@ async function reverseGeocodeStrict(lng, lat, token, { country = 'CO', maxMeters
     const feats = Array.isArray(data.features) ? data.features : [];
     if (!feats.length) return { address: '', matched: false };
 
-    // Distancia en metros
+    // Distance in meters
     const R = 6371000;
     const toRad = x => x * Math.PI / 180;
-// Function distM
+    // Haversine distance in meters
     const distM = (lon1, lat1, lon2, lat2) => {
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
@@ -218,7 +217,7 @@ async function reverseGeocodeStrict(lng, lat, token, { country = 'CO', maxMeters
   }
 }
 
-// Búsqueda de lugares (forward). Devuelve coordenadas exactas del feature.
+// Forward place search. Returns exact feature coordinates.
 export async function searchPlaces(query, token, opts = {}) {
   try {
     const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json`);
@@ -231,7 +230,7 @@ export async function searchPlaces(query, token, opts = {}) {
       url.searchParams.set('proximity', `${opts.proximity[0]},${opts.proximity[1]}`); // [lng, lat]
     }
 
-// API request
+    // API request
     const r = await fetch(url.toString());
     if (!r.ok) return [];
     const data = await r.json();

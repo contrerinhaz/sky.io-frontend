@@ -1,4 +1,4 @@
-
+// src/pages/landing.js
 export function showLanding() {
   const app = document.getElementById('app')
   app.innerHTML = `
@@ -52,14 +52,14 @@ export function showLanding() {
   </div>
   `
 
-// Function feature
+  // Small feature row
   function feature(emoji, title, desc){
     return `<div class="flex items-start gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
       <div class="text-2xl select-none">${emoji}</div>
       <div><h3 class="font-semibold text-white">${title}</h3><p class="text-sm text-slate-400">${desc}</p></div>
     </div>`
   }
-// Function badge
+  // Tiny badge
   function badge(text){
     return `<span class="text-xs px-3 py-1 rounded-full bg-primary/15 text-sky-200 border border-sky-500/30">${text}</span>`
   }

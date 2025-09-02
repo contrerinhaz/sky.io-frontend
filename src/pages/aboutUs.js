@@ -1,4 +1,6 @@
 // src/pages/about.us.js
+
+// Render About Us page
 export function showAboutUs() {
   const app = document.getElementById('app')
   const isAuthed = !!localStorage.getItem('auth_token')
@@ -17,7 +19,6 @@ export function showAboutUs() {
 
   app.innerHTML = 
   `
-    <!-- Botón flotante fuera del contenido -->
     <a href="#/"
     class="fixed top-6 left-6 z-50 inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/20 bg-white/10 backdrop-blur hover:bg-white/20 text-white text-sm shadow-lg transition">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -29,7 +30,6 @@ export function showAboutUs() {
   <div class="px-4 pt-12 lg:pt-16 pb-[calc(var(--footer-h,0px)+24px)]">
     <div class="mx-auto w-full max-w-7xl space-y-12">
 
-      <!-- HERO -->
       <section class="glass-card rounded-3xl p-8 lg:p-12 overflow-hidden">
         <div class="flex flex-col lg:flex-row gap-10 items-start lg:items-center">
           <div class="flex-1 space-y-4">
@@ -42,7 +42,6 @@ export function showAboutUs() {
             </p>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4">
               ${metric("99.95%", "Disponibilidad")}
-
               ${metric("24/7", "Monitoreo")}
             </div>
           </div>
@@ -62,8 +61,6 @@ export function showAboutUs() {
         </div>
       </section>
 
-
-      <!-- MISIÓN / VISIÓN -->
       <section id="mv" class="grid gap-6 md:grid-cols-2">
         <article class="rounded-2xl border border-white/10 bg-white/5 p-6 lg:p-8">
           <div class="flex items-center gap-3 mb-3">
@@ -98,7 +95,6 @@ export function showAboutUs() {
         </article>
       </section>
 
-      <!-- PROPUESTA -->
       <section id="propuesta" class="space-y-6">
         <h2 class="text-2xl lg:text-3xl font-bold text-white">Nuestra propuesta de valor</h2>
         <div class="grid gap-6 md:grid-cols-3">
@@ -108,8 +104,6 @@ export function showAboutUs() {
         </div>
       </section>
 
-
-      <!-- INDUSTRIAS -->
       <section id="industrias" class="space-y-6">
         <h2 class="text-2xl lg:text-3xl font-bold text-white">Industrias que servimos</h2>
         <div class="flex flex-wrap gap-2">
@@ -121,7 +115,6 @@ export function showAboutUs() {
         </div>
       </section>
 
-      <!-- EQUIPO -->
       <section id="equipo" class="space-y-6">
         <h2 class="text-2xl lg:text-3xl font-bold text-white">Equipo</h2>
         <p class="text-slate-300 max-w-3xl">
@@ -135,7 +128,6 @@ export function showAboutUs() {
         </div>
       </section>
 
-      <!-- CTA FINAL -->
       <section class="rounded-2xl border border-white/10 bg-white/5 p-6 lg:p-8">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -151,13 +143,15 @@ export function showAboutUs() {
 
   // helpers
   function metric(v, l) {
+    // Small metric tile
     return `
       <div class="rounded-xl border border-white/10 bg-white/5 p-4">
         <div class="text-2xl font-semibold text-white">${v}</div>
         <div class="text-xs text-slate-400">${l}</div>
       </div>`
   }
-// Function card
+
+  // Info card
   function card(icon, title, desc){
     return `
       <article class="rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition">
@@ -166,7 +160,8 @@ export function showAboutUs() {
         <p class="text-slate-300 text-sm leading-relaxed mt-1">${desc}</p>
       </article>`
   }
-// Function stat
+
+  // Stat block
   function stat(value, label){
     return `
       <div class="rounded-2xl border border-white/10 bg-white/5 p-5 text-center">
@@ -174,7 +169,8 @@ export function showAboutUs() {
         <div class="text-slate-400 text-sm mt-1">${label}</div>
       </div>`
   }
-// Function milestone
+
+  // Timeline milestone item
   function milestone(year, title, desc){
     return `
       <li class="relative pl-4">
@@ -184,11 +180,13 @@ export function showAboutUs() {
         <p class="text-slate-300 text-sm">${desc}</p>
       </li>`
   }
-// Function pill
+
+  // Small tag pill
   function pill(t){
     return `<span class="px-3 py-1 rounded-full border border-white/15 bg-white/5 text-slate-200 text-sm">${t}</span>`
   }
-// Function member
+
+  // Team member card
   function member(name, role, blurb){
     return `
       <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
