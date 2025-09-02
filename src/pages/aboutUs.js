@@ -1,4 +1,4 @@
-// src/pages/about.us.js
+// src/pages/aboutUs.js
 
 // Render About Us page
 export function showAboutUs() {
@@ -27,7 +27,7 @@ export function showAboutUs() {
     Inicio
     </a>
 
-  <div class="px-4 pt-12 lg:pt-16 pb-[calc(var(--footer-h,0px)+24px)]">
+  <div class="px-4 pt-12 lg:pt-16 pb-6">
     <div class="mx-auto w-full max-w-7xl space-y-12">
 
       <section class="glass-card rounded-3xl p-8 lg:p-12 overflow-hidden">
@@ -118,13 +118,13 @@ export function showAboutUs() {
       <section id="equipo" class="space-y-6">
         <h2 class="text-2xl lg:text-3xl font-bold text-white">Equipo</h2>
         <p class="text-slate-300 max-w-3xl">
-          Somos un equipo de ingeniería, ciencia de datos y operaciones en campo. Combinamos experiencia
-          en meteorología aplicada con software robusto para llevar señales confiables a la primera línea.
+            Somos Desarrolladores de Software de Riwi. Unimos ingeniería y ciencia de datos con enfoque en producto para convertir datos meteorológicos en señales claras y accionables para la primera línea.
         </p>
+
         <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          ${member('A. Rivera', 'CTO', 'Arquitectura, datos y plataforma.')}
-          ${member('L. Méndez', 'Head of Ops', 'Implementación en sitio y protocolos.')}
-          ${member('S. Torres', 'Product Lead', 'Experiencia de usuario y partners.')}
+          ${member('J. Barraza', 'Product Owner', '')}
+          ${member('D. Marín', 'Desarrollador Full Stack', '')}
+          ${member('J. Contreras', 'Desarrollador Full Stack', '')}
         </div>
       </section>
 
