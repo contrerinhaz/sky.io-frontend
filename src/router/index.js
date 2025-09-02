@@ -1,8 +1,8 @@
-
 // src/router/index.js
 import { showLanding } from '../pages/landing.js'
 import { showRegister } from '../pages/register.js'
 import { showLogin } from '../pages/login.js'
+import { showAboutUs } from '../pages/aboutUs.js'
 import { showNotFound } from '../pages/404.js'
 import { showDashboardCustomer } from '../pages/dashboardCustomer.js'
 import { showCompanyDetail } from '../pages/companyDetail.js'
@@ -21,6 +21,7 @@ const routes = new Map([
   ['#/dashboard',      { handler: showDashboardCustomer, auth: true }],
   ['#/dashboardAdmin', { handler: showDashboardAdmin,  auth: true, admin: true }],
   ['#/logout',         { handler: () => { logoutUser(); goto('#/login') } }],
+  ['#/about',            { handler: showAboutUs }],
   ['#/404',            { handler: showNotFound }],
 ])
 

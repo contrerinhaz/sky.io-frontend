@@ -1,4 +1,3 @@
-
 // src/pages/about.us.js
 export function showAboutUs() {
   const app = document.getElementById('app')
@@ -109,17 +108,6 @@ export function showAboutUs() {
         </div>
       </section>
 
-      <!-- MÉTRICAS -->
-      <section id="metricas" class="space-y-6">
-        <h2 class="text-2xl lg:text-3xl font-bold text-white">Impacto medible</h2>
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          ${stat('99.95%', 'Disponibilidad de la plataforma')}
-          ${stat('⏱️ < 5 min', 'Tiempo promedio de alerta')}
-          ${stat('-28%', 'Incidentes meteo reportados')}
-          ${stat('+18%', 'Productividad en campo')}
-        </div>
-      </section>
-
 
       <!-- INDUSTRIAS -->
       <section id="industrias" class="space-y-6">
@@ -152,7 +140,6 @@ export function showAboutUs() {
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h3 class="text-xl font-semibold text-white">¿Listo para probar Sky.io?</h3>
-            <p class="text-slate-300">Agenda un demo o crea tu cuenta para comenzar en minutos.</p>
           </div>
           ${ctaButtons}
         </div>
