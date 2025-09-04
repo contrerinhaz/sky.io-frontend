@@ -1,33 +1,28 @@
 // src/pages/companyDetail.js
 import { CompanyAPI } from '../services/company.service.js'
-import { API_BASE } from '../services/config.js'
+import { API_BASE } from '../services/config.js'   // ← base del backend
 
-/* helpers to persist history in SQL */
+// ===== helpers de usuario / backend =====
 function getUserId() {
   const auth = JSON.parse(localStorage.getItem('auth_user') || 'null')
   return auth?.id ?? localStorage.getItem('user_id') ?? 1
 }
-// Save history to backend
-async function saveHistorySQL(companyId, item) {
-  const base = String(API_BASE || '/api').replace(/\/+$/,'')
-  // API request
-  const res = await fetch(`${base}/companies/${encodeURIComponent(companyId)}/history`, {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'x-user-id': String(getUserId()),
-    },
-    body: JSON.stringify(item)
-  })
-  if (!res.ok) throw new Error(await res.text().catch(()=>`HTTP ${res.status}`))
-  return res.json().catch(() => ({}))
+function apiBase() {
+  const b = String(API_BASE || '/api').replace(/\/+$/,'')
+  return b.endsWith('/api') ? b : (b + '/api')
 }
 
+
+// Persistencia local solo para UI si el backend falla
+const HISTORY_LIMIT = 50
+const historyKey = (id) => `skycare:advHistory:${id}`
+function loadHistoryLocal(id) { try { return JSON.parse(localStorage.getItem(historyKey(id)) || '[]') } catch { return [] } }
+function saveHistoryLocal(id, arr) { localStorage.setItem(historyKey(id), JSON.stringify(arr.slice(0, HISTORY_LIMIT))) }
+function pushHistoryLocal(id, item) { const arr = loadHistoryLocal(id); arr.unshift(item); saveHistoryLocal(id, arr) }
+
+// ===== vista principal =====
 export async function showCompanyDetail(id) {
   const app = document.getElementById('app')
-
-  // Loading state
   app.innerHTML = `
     <div class="min-h-screen p-4 lg:p-8">
       <div class="max-w-7xl mx-auto">
@@ -49,7 +44,7 @@ export async function showCompanyDetail(id) {
   renderDetail(app, company, weatherRes, { weatherErr })
 }
 
-// Render fatal error screen
+// ===== errores =====
 function showFatal(app, msg) {
   app.innerHTML = `
     <div class="min-h-screen p-4 lg:p-8 flex items-center justify-center">
@@ -66,7 +61,7 @@ function showFatal(app, msg) {
   `
 }
 
-// Render detail view
+// ===== UI =====
 function renderDetail(app, company, { weather, rules }, { weatherErr }) {
   const latN = Number(company.lat)
   const lonN = Number(company.lon)
@@ -92,7 +87,6 @@ function renderDetail(app, company, { weather, rules }, { weatherErr }) {
                     <div>
                       <div class="font-medium text-white">Actividad industrial</div>
                       <div class="text-sm text-gray-400">${sanitize(company.activity || '')}</div>
-
                     </div>
                   </div>
                   <div class="flex items-start gap-3">
@@ -155,17 +149,17 @@ function renderDetail(app, company, { weather, rules }, { weatherErr }) {
           <div class="mb-6 flex items-center justify-between">
             <div>
               <h2 class="text-xl font-semibold text-white mb-2">Consulta avanzada con IA</h2>
-              <p class="text-gray-400">Describe tu actividad y horario para obtener recomendaciones específicas.</p>
+              <p class="text-gray-400">Describe tu horario para obtener recomendaciones climáticas.</p>
             </div>
             <button id="historyBtn" class="px-4 py-2 rounded-lg border border-cyan-400/30 text-cyan-300 hover:bg-cyan-400/10">Historial</button>
           </div>
 
           <div class="space-y-4">
             <div class="space-y-2">
-              <label class="block text-sm font-medium text-gray-300">Describe tu operación</label>
-              <textarea id="advMsg" placeholder="Ej: Mañana de 08:00 a 12:00 haremos soldadura al aire libre" class="form-input w-full bg-secondary border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-primary transition-colors h-24 resize-none"></textarea>
+              <label class="block text-sm font-medium text-gray-300">Describe tu consulta</label>
+              <textarea id="advMsg" placeholder="Ej: Mañana de 08:00 a 12:00 en la sede" class="form-input w-full bg-secondary border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-primary transition-colors h-24 resize-none"></textarea>
             </div>
-            <button id="advBtn" class="btn-primary px-6 py-3 rounded-lg font-semibold">🤖 Generar recomendaciones IA</button>
+            <button id="advBtn" class="btn-primary px-6 py-3 rounded-lg font-semibold">Generar recomendaciones IA</button>
           </div>
           <div id="advResult" class="mt-6"></div>
         </div>
@@ -173,17 +167,15 @@ function renderDetail(app, company, { weather, rules }, { weatherErr }) {
     </div>
   `
 
-  // Map and actions
   initializeMap(haveCoords ? latN : null, haveCoords ? lonN : null, company.name, company.activity)
-
   document.getElementById('advBtn').addEventListener('click', () => handleAdvancedQuery(company.id, company.activity))
   document.getElementById('historyBtn').addEventListener('click', () => openHistoryModal(company.id))
 }
 
-// Handle advanced query flow
+// ===== consulta avanzada =====
 async function handleAdvancedQuery(id, fallbackActivity) {
   const msg = document.getElementById('advMsg').value.trim()
-  if (!msg) return showNotification('Describe tu operación', 'error')
+  if (!msg) return showNotification('Describe tu consulta', 'error')
 
   const btn = document.getElementById('advBtn')
   const resultEl = document.getElementById('advResult')
@@ -193,17 +185,10 @@ async function handleAdvancedQuery(id, fallbackActivity) {
 
   try {
     const res = await CompanyAPI.advancedQuery(id, msg)
-
-    // Normalize names and persist to SQL
+    // fallback local (el backend ya guarda historial)
     const schedule = res?.schedule ?? null
     const response = res?.recommendations ?? res?.answer ?? 'Sin contenido'
-    try {
-      await saveHistorySQL(id, { prompt: msg, schedule, response })
-    } catch {
-      // Local fallback if endpoint does not exist yet
-      pushHistory(id, { ts: Date.now(), prompt: msg, schedule, response })
-    }
-
+    pushHistoryLocal(id, { ts: Date.now(), prompt: msg, schedule, response })
     resultEl.innerHTML = renderAdvResult(res, fallbackActivity)
   } catch (e) {
     resultEl.innerHTML = `
@@ -217,7 +202,6 @@ async function handleAdvancedQuery(id, fallbackActivity) {
   }
 }
 
-// Render advanced result block
 function renderAdvResult(res, fallbackActivity) {
   const meta = {
     fecha: res?.schedule?.fecha || 'No especificada',
@@ -257,167 +241,44 @@ function renderAdvResult(res, fallbackActivity) {
   `
 }
 
-// Format recommendation sections
-function renderStyledRecommendations(text, risk) {
-  const sections = splitSections(text)
-
-  const blocks = sections.map(({ name, text }) => {
-    const key = name.toLowerCase()
-    if (/riesgos/.test(key)) {
-      return cardBlock('Riesgos principales', listify(text, 'alert'), 'from-rose-500/15 to-red-500/10', 'border-red-500/30', '⚠️')
+// ===== historial (UI + llamadas backend) =====
+async function fetchHistorySQL(companyId, limit = 50) {
+  const res = await fetch(`${apiBase()}/companies/${encodeURIComponent(companyId)}/history?limit=${limit}`, {
+    headers: {
+      'Accept': 'application/json',
+      'x-user-id': String(getUserId())
     }
-    if (/medidas/.test(key)) {
-      return cardBlock('Medidas preventivas', listify(text, 'check'), 'from-emerald-500/15 to-teal-500/10', 'border-emerald-500/30', '🛡️')
-    }
-    if (/umbrales|trigger/.test(key)) {
-      return cardBlock('Umbrales y triggers', listify(text, 'target'), 'from-amber-500/15 to-yellow-500/10', 'border-amber-500/30', '🎯')
-    }
-    if (/checklist/.test(key)) {
-      return cardBlock('Checklist', listify(text, 'numbered'), 'from-blue-500/15 to-cyan-500/10', 'border-blue-500/30', '📝')
-    }
-    if (/nivel de riesgo/.test(key)) {
-      const just = extractJustification(text)
-      return `
-        <div class="rounded-xl p-4 bg-gradient-to-r from-slate-700/40 to-slate-700/20 border border-white/10">
-          <div class="flex items-center gap-2 mb-2 text-white">
-            <span>📊</span><h4 class="font-medium">Nivel de riesgo</h4>
-          </div>
-          ${risk?.level ? `<div class="mb-2 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full text-white bg-gradient-to-r ${risk.bg} shadow">
-            <span>${risk.icon}</span><b>${risk.level}</b>
-          </div>` : ''}
-          ${just ? `<p class="text-sm text-slate-300 leading-relaxed"><span class="text-slate-400">Justificación:</span> ${sanitize(just)}</p>` : ''}
-        </div>
-      `
-    }
-    return cardBlock(name || 'Recomendaciones', listify(text, 'dot'), 'from-slate-600/20 to-slate-700/20', 'border-white/10', '✨')
   })
-
-  return blocks.join('')
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const json = await res.json().catch(() => ({}))
+  return Array.isArray(json.items) ? json.items : []
 }
-
-// Small card wrapper
-function cardBlock(title, contentHtml, grad, border, icon) {
-  return `
-    <div class="rounded-xl p-4 bg-gradient-to-r ${grad} border ${border}">
-      <div class="flex items-center gap-2 mb-2 text-white">
-        <span>${icon}</span><h4 class="font-medium">${sanitize(title)}</h4>
-      </div>
-      ${contentHtml}
-    </div>
-  `
-}
-
-// Split raw text into named sections
-function splitSections(txt) {
-  const re = /(Riesgos principales|Medidas preventivas|Umbrales y triggers|Umbrales|Checklist breve|Checklist|Nivel de riesgo)\s*:/gi
-  const out = []
-  let m, last = null, idx = 0
-  while ((m = re.exec(txt)) !== null) {
-    if (last) out.push({ name: last, text: txt.slice(idx, m.index).trim() })
-    last = m[1]
-    idx = re.lastIndex
-  }
-  if (last) out.push({ name: last, text: txt.slice(idx).trim() })
-  if (!out.length) out.push({ name: 'Recomendaciones', text: txt })
-  return out
-}
-
-// Turn text into list markup
-function listify(text, mode = 'dot') {
-  const lines = text
-    .split(/\r?\n/)
-    .map(s => s.trim())
-    .filter(Boolean)
-
-  const items = lines.map((l) => {
-    const m = l.match(/^[-•]\s*(.+)$/) || l.match(/^\d+[.)]\s*(.+)$/) || [, l]
-    return m[1]
+async function clearHistorySQL(companyId) {
+  const res = await fetch(`${apiBase()}/companies/${encodeURIComponent(companyId)}/history`, {
+    method: 'DELETE',
+    headers: { 'x-user-id': String(getUserId()) }
   })
-
-  if (!items.length) return `<p class="text-sm text-slate-300">${sanitize(text)}</p>`
-
-  if (mode === 'numbered') {
-    return `<ol class="space-y-2 ml-1">
-      ${items.map((it, i) => `
-        <li class="flex items-start gap-2 text-sm text-slate-200">
-          <span class="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/30 border border-blue-400/40 text-[11px]">${i + 1}</span>
-          <span class="leading-relaxed">${sanitize(it)}</span>
-        </li>`).join('')}
-    </ol>`
-  }
-
-  const symbol = mode === 'check' ? '✅' : mode === 'alert' ? '⚠️' : mode === 'target' ? '🎯' : '•'
-  return `<ul class="space-y-2 ml-1">
-    ${items.map((it) => `
-      <li class="flex items-start gap-2 text-sm text-slate-2
-00">
-        <span class="mt-0.5">${symbol}</span>
-        <span class="leading-relaxed">${sanitize(it)}</span>
-      </li>`).join('')}
-  </ul>`
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json().catch(() => ({}))
 }
 
-// Extract risk level tag
-function extractRisk(text) {
-  const m = text.match(/Nivel de riesgo:\s*(Alto|Medio|Bajo)/i)
-  const level = m ? m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() : null
-  const map = {
-    'Alto':  { bg: 'from-red-600 to-pink-600',     icon: '⛔' },
-    'Medio': { bg: 'from-amber-500 to-orange-600', icon: '⚠️' },
-    'Bajo':  { bg: 'from-emerald-500 to-teal-600', icon: '🟢' },
-  }
-  return level ? { level, ...map[level] } : { level: null }
-}
-
-// Extract justification text
-function extractJustification(text) {
-  const j = text.match(/Justificación:\s*([\s\S]+)/i)
-  return j ? j[1].trim() : ''
-}
-
-/* History fallback via localStorage */
-const HISTORY_LIMIT = 50
-// Storage key
-const historyKey = (id) => `skycare:advHistory:${id}`
-
-// Load history
-function loadHistory(id) {
-  try { return JSON.parse(localStorage.getItem(historyKey(id)) || '[]') }
-  catch { return [] }
-}
-// Save history
-function saveHistory(id, arr) {
-  localStorage.setItem(historyKey(id), JSON.stringify(arr.slice(0, HISTORY_LIMIT)))
-}
-// Push entry
-function pushHistory(id, item) {
-  const arr = loadHistory(id)
-  arr.unshift(item)
-  saveHistory(id, arr)
-}
-
-// Clip helper
-function clip(s, n = 140) {
-  s = String(s || '')
-  return s.length > n ? s.slice(0, n - 1) + '…' : s
-}
-// Render one row
+function clip(s, n = 160) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s }
 function renderHistRow(it, i) {
   const meta = it.schedule || {}
   const horario = [meta.horaInicio, meta.horaFin].filter(Boolean).join(' - ')
+  const ts = it.ts ? new Date(it.ts).toLocaleString() : new Date().toLocaleString()
   return `
     <article id="row-${i}" class="rounded-xl border border-white/10 bg-white/5">
       <header class="flex items-start justify-between gap-3 p-4">
         <div class="min-w-0">
-          <div class="text-xs text-slate-400">#${i + 1} · ${new Date(it.ts || Date.now()).toLocaleString()}</div>
-          <div class="text-sm text-white mt-1 truncate">${sanitize(clip(it.prompt, 160))}</div>
+          <div class="text-xs text-slate-400">#${i + 1} · ${ts}</div>
+          <div class="text-sm text-white mt-1 truncate">${sanitize(clip(it.prompt, 180))}</div>
         </div>
         <div class="flex items-center gap-2">
           <button class="px-3 py-1 text-xs rounded-md bg-slate-700 hover:bg-slate-600" data-action="reuse" data-idx="${i}">Reusar</button>
           <button class="px-3 py-1 text-xs rounded-md bg-slate-700 hover:bg-slate-600" data-action="toggle" data-idx="${i}">Ver más</button>
         </div>
       </header>
-
       <div class="row-panel hidden px-4 pb-4">
         ${
           meta.fecha || horario || meta.actividad
@@ -437,17 +298,30 @@ function renderHistRow(it, i) {
   `
 }
 
-// Open modal with history
-function openHistoryModal(companyId) {
-  const items = loadHistory(companyId)
+async function openHistoryModal(companyId) {
+  let items = []
+  let error = null
+  try {
+    items = await fetchHistorySQL(companyId, 50)          // ← del backend, filtrado por x-user-id
+  } catch (e) {
+    error = e?.message || 'Error cargando historial'
+    // fallback local si algo falla
+    items = loadHistoryLocal(companyId)
+  }
 
   const modal = document.createElement('div')
   modal.className = 'fixed inset-0 bg-black/60 p-4 z-50 flex items-center justify-center'
   modal.innerHTML = `
     <div class="glass-card rounded-2xl w-full max-w-3xl h-[85vh] max-h-[85vh] flex flex-col overflow-hidden">
       <div class="flex items-center justify-between p-4 border-b border-white/10">
-        <h3 class="text-lg font-semibold text-white">Historial de consultas IA</h3>
-        <button id="closeHist" class="px-3 py-1 rounded-md bg-slate-700 hover:bg-slate-600">Cerrar</button>
+        <div>
+          <h3 class="text-lg font-semibold text-white">Historial de consultas IA</h3>
+          ${error ? `<div class="text-xs text-red-300 mt-1">${sanitize(error)}</div>` : ''}
+        </div>
+        <div class="flex gap-2">
+          ${items.length ? `<button id="clearHist" class="px-3 py-1 rounded-md bg-red-700 hover:bg-red-600">Borrar historial</button>` : ''}
+          <button id="closeHist" class="px-3 py-1 rounded-md bg-slate-700 hover:bg-slate-600">Cerrar</button>
+        </div>
       </div>
 
       <div id="histBody" class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
@@ -457,21 +331,11 @@ function openHistoryModal(companyId) {
             : `<div class="text-gray-400 text-sm">No hay consultas registradas.</div>`
         }
       </div>
-
-      <div class="p-3 border-t border-white/10 text-right">
-        ${
-          items.length
-            ? `<button id="clearHist" class="px-3 py-1 rounded-md bg-red-700 hover:bg-red-600">Borrar historial</button>`
-            : ''
-        }
-      </div>
     </div>
   `
-
   const prevOverflow = document.body.style.overflow
   document.body.style.overflow = 'hidden'
   document.body.appendChild(modal)
-  // Close modal
   const close = () => { document.body.style.overflow = prevOverflow; modal.remove() }
 
   modal.addEventListener('click', (e) => { if (e.target === modal) close() })
@@ -503,19 +367,128 @@ function openHistoryModal(companyId) {
 
   const clearBtn = modal.querySelector('#clearHist')
   if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-      localStorage.removeItem(historyKey(companyId))
+    clearBtn.addEventListener('click', async () => {
+      try {
+        await clearHistorySQL(companyId)
+      } catch {
+        // si el backend falla, limpia local
+        localStorage.removeItem(historyKey(companyId))
+      }
       close()
       openHistoryModal(companyId)
     })
   }
 }
 
-// Weather panel
-function renderWeather(w) {
-  if (!w) {
-    return `<div class="text-center text-gray-400 py-8"><div class="text-4xl mb-4">🌫️</div><div>Datos meteorológicos no disponibles</div></div>`
+// ===== secciones recomendación =====
+function renderStyledRecommendations(text, risk) {
+  const sections = splitSections(text)
+  const blocks = sections.map(({ name, text }) => {
+    const key = name.toLowerCase()
+    if (/riesgos/.test(key)) return cardBlock('Riesgos principales', listify(text, 'alert'), 'from-rose-500/15 to-red-500/10', 'border-red-500/30', '⚠️')
+    if (/medidas/.test(key)) return cardBlock('Medidas preventivas', listify(text, 'check'), 'from-emerald-500/15 to-teal-500/10', 'border-emerald-500/30', '🛡️')
+    if (/umbrales|trigger/.test(key)) return cardBlock('Umbrales y triggers', listify(text, 'target'), 'from-amber-500/15 to-yellow-500/10', 'border-amber-500/30', '🎯')
+    if (/checklist/.test(key)) return cardBlock('Checklist', listify(text, 'numbered'), 'from-blue-500/15 to-cyan-500/10', 'border-blue-500/30', '📝')
+    if (/nivel de riesgo/.test(key)) {
+      const just = extractJustification(text)
+      return `
+        <div class="rounded-xl p-4 bg-gradient-to-r from-slate-700/40 to-slate-700/20 border border-white/10">
+          <div class="flex items-center gap-2 mb-2 text-white">
+            <span>📊</span><h4 class="font-medium">Nivel de riesgo</h4>
+          </div>
+          ${risk?.level ? `<div class="mb-2 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full text-white bg-gradient-to-r ${risk.bg} shadow">
+            <span>${risk.icon}</span><b>${risk.level}</b>
+          </div>` : ''}
+          ${just ? `<p class="text-sm text-slate-300 leading-relaxed"><span class="text-slate-400">Justificación:</span> ${sanitize(just)}</p>` : ''}
+        </div>
+      `
+    }
+    return cardBlock(name || 'Recomendaciones', listify(text, 'dot'), 'from-slate-600/20 to-slate-700/20', 'border-white/10', '✨')
+  })
+  return blocks.join('')
+}
+function cardBlock(title, contentHtml, grad, border, icon) {
+  return `
+    <div class="rounded-xl p-4 bg-gradient-to-r ${grad} border ${border}">
+      <div class="flex items-center gap-2 mb-2 text-white">
+        <span>${icon}</span><h4 class="font-medium">${sanitize(title)}</h4>
+      </div>
+      ${contentHtml}
+    </div>
+  `
+}
+function splitSections(txt) {
+  const re = /(Riesgos principales|Medidas preventivas|Umbrales y triggers|Umbrales|Checklist breve|Checklist|Nivel de riesgo)\s*:/gi
+  const out = []; let m, last = null, idx = 0
+  while ((m = re.exec(txt)) !== null) { if (last) out.push({ name: last, text: txt.slice(idx, m.index).trim() }); last = m[1]; idx = re.lastIndex }
+  if (last) out.push({ name: last, text: txt.slice(idx).trim() })
+  if (!out.length) out.push({ name: 'Recomendaciones', text: txt })
+  return out
+}
+function listify(text, mode = 'dot') {
+  const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
+  const items = lines.map((l) => (l.match(/^[-•]\s*(.+)$/) || l.match(/^\d+[.)]\s*(.+)$/) || [, l])[1])
+  if (!items.length) return `<p class="text-sm text-slate-300">${sanitize(text)}</p>`
+  if (mode === 'numbered') {
+    return `<ol class="space-y-2 ml-1">${items.map((it, i) => `
+      <li class="flex items-start gap-2 text-sm text-slate-200">
+        <span class="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/30 border border-blue-400/40 text-[11px]">${i + 1}</span>
+        <span class="leading-relaxed">${sanitize(it)}</span>
+      </li>`).join('')}</ol>`
   }
+  const symbol = mode === 'check' ? '✅' : mode === 'alert' ? '⚠️' : mode === 'target' ? '🎯' : '•'
+  return `<ul class="space-y-2 ml-1">${items.map((it) => `
+    <li class="flex items-start gap-2 text-sm text-slate-200">
+      <span class="mt-0.5">${symbol}</span>
+      <span class="leading-relaxed">${sanitize(it)}</span>
+    </li>`).join('')}</ul>`
+}
+function extractRisk(text) {
+  const m = text.match(/Nivel de riesgo:\s*(Alto|Medio|Bajo)/i)
+  const level = m ? m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() : null
+  const map = { 'Alto': { bg: 'from-red-600 to-pink-600', icon: '⛔' }, 'Medio': { bg: 'from-amber-500 to-orange-600', icon: '⚠️' }, 'Bajo': { bg: 'from-emerald-500 to-teal-600', icon: '🟢' } }
+  return level ? { level, ...map[level] } : { level: null }
+}
+function extractJustification(text) { const j = text.match(/Justificación:\s*([\s\S]+)/i); return j ? j[1].trim() : '' }
+
+// ===== mapa y utilidades =====
+function getWeatherIcon(code) {
+  const iconMap = {1000:'☀️',1100:'🌤️',1101:'⛅',1102:'🌥️',1001:'☁️',2000:'🌫️',2100:'🌫️',3000:'💨',3001:'💨',3002:'💨',4000:'🌦️',4200:'🌧️',4001:'🌧️',4201:'⛈️',5000:'🌨️',5100:'❄️',5001:'🌨️',5101:'❄️',6000:'🌨️',6200:'🌨️',6001:'🌨️',7000:'🧊',7102:'🧊',7101:'🧊',8000:'⛈️'}
+  return iconMap[code] || '🌤️'
+}
+function initializeMap(lat, lon, name, activity) {
+  const mapEl = document.getElementById('map')
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) { mapEl.innerHTML = `<div class="h-full flex items-center justify-center text-gray-400"><div class="text-center"><div class="text-4xl mb-2">📍</div><div>Sin coordenadas válidas</div></div></div>`; return }
+  const mapboxgl = window.mapboxgl
+  if (!mapboxgl) { mapEl.innerHTML = `<div class="h-full flex items-center justify-center text-gray-400"><div class="text-center"><div class="text-4xl mb-4">🗺️</div><div>Mapbox no disponible</div></div></div>`; return }
+  const token = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN
+  if (!token) { mapEl.innerHTML = `<div class="h-full flex items-center justify-center text-gray-400"><div class="text-center"><div class="text-4xl mb-4">🔑</div><div class="text-sm">Token de Mapbox requerido</div></div></div>`; return }
+  mapboxgl.accessToken = token
+  try {
+    const map = new mapboxgl.Map({ container: mapEl, style: 'mapbox://styles/mapbox/satellite-streets-v12', center: [lon, lat], zoom: 14 })
+    new mapboxgl.Marker({ color: '#00ffff' })
+      .setLngLat([lon, lat])
+      .setPopup(new mapboxgl.Popup().setHTML(`<div class="text-center p-2"><div class="font-semibold text-gray-800">${sanitize(name)}</div><div class="text-sm text-gray-600">${sanitize(activity || '')}</div></div>`))
+      .addTo(map)
+    map.addControl(new mapboxgl.NavigationControl(), 'top-right')
+  } catch {
+    mapEl.innerHTML = `<div class="h-full flex items-center justify-center text-gray-400"><div class="text-center"><div class="text-4xl mb-4">❌</div><div class="text-sm">Error cargando mapa</div></div></div>`
+  }
+}
+function isNum(v) { return typeof v === 'number' && Number.isFinite(v) }
+function sanitize(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;') }
+function showNotification(message, type = 'info') {
+  const n = document.createElement('div')
+  n.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all transform translate-x-full ${ type === 'success' ? 'success-message' : type === 'error' ? 'error-message' : 'glass-card' }`
+  n.innerHTML = `<div class="flex items-center gap-3"><div class="text-xl">${ type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️' }</div><span class="font-medium">${sanitize(message)}</span></div>`
+  document.body.appendChild(n)
+  setTimeout(() => n.style.transform = 'translateX(0)', 50)
+  setTimeout(() => { n.style.transform = 'translateX(120%)'; setTimeout(() => n.remove(), 300) }, 3000)
+}
+
+// ===== clima panel =====
+function renderWeather(w) {
+  if (!w) return `<div class="text-center text-gray-400 py-8"><div class="text-4xl mb-4">🌫️</div><div>Datos meteorológicos no disponibles</div></div>`
   const temp = isNum(w.temperatura) ? Math.round(w.temperatura) : '--'
   const feels = isNum(w.sensacionTermica) ? Math.round(w.sensacionTermica) : '--'
   const humidity = isNum(w.humedad) ? w.humedad : '--'
@@ -538,8 +511,6 @@ function renderWeather(w) {
     </div>
   `
 }
-
-// Quick rules list
 function renderQuickRules(rules) {
   if (!Array.isArray(rules) || rules.length === 0) {
     return `<div class="text-center text-gray-400 py-8"><div class="text-4xl mb-4">✅</div><div>Condiciones normales de trabajo</div><div class="text-sm mt-2">Seguir procedimientos estándar</div></div>`
@@ -555,66 +526,4 @@ function renderQuickRules(rules) {
         </div>`).join('')}
     </div>
   `
-}
-
-// Weather icon map
-function getWeatherIcon(code) {
-  const iconMap = {1000:'☀️',1100:'🌤️',1101:'⛅',1102:'🌥️',1001:'☁️',2000:'🌫️',2100:'🌫️',3000:'💨',3001:'💨',3002:'💨',4000:'🌦️',4200:'🌧️',4001:'🌧️',4201:'⛈️',5000:'🌨️',5100:'❄️',5001:'🌨️',5101:'❄️',6000:'🌨️',6200:'🌨️',6001:'🌨️',7000:'🧊',7102:'🧊',7101:'🧊',8000:'⛈️'}
-  return iconMap[code] || '🌤️'
-}
-
-// Init map if coords are valid
-function initializeMap(lat, lon, name, activity) {
-  const mapEl = document.getElementById('map')
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    mapEl.innerHTML = `<div class="h-full flex items-center justify-center text-gray-400"><div class="text-center"><div class="text-4xl mb-2">📍</div><div>Sin coordenadas válidas</div></div></div>`
-    return
-  }
-  if (!window.mapboxgl) {
-    mapEl.innerHTML = `<div class="h-full flex items-center justify-center text-gray-400"><div class="text-center"><div class="text-4xl mb-4">🗺️</div><div>Mapbox no disponible</div></div></div>`
-    return
-  }
-  const token = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN
-  if (!token) {
-    mapEl.innerHTML = `<div class="h-full flex items-center justify-center text-gray-400"><div class="text-center"><div class="text-4xl mb-4">🔑</div><div class="text-sm">Token de Mapbox requerido</div></div></div>`
-    return
-  }
-
-  mapboxgl.accessToken = token
-  try {
-    const map = new mapboxgl.Map({
-      container: mapEl,
-      style: 'mapbox://styles/mapbox/satellite-streets-v12',
-      center: [lon, lat],
-      zoom: 14
-    })
-    new mapboxgl.Marker({ color: '#00ffff' })
-      .setLngLat([lon, lat])
-      .setPopup(new mapboxgl.Popup().setHTML(`<div class="text-center p-2"><div class="font-semibold text-gray-800">${sanitize(name)}</div><div class="text-sm text-gray-600">${sanitize(activity || '')}</div></div>`))
-      .addTo(map)
-    map.addControl(new mapboxgl.NavigationControl(), 'top-right')
-  } catch {
-    mapEl.innerHTML = `<div class="h-full flex items-center justify-center text-gray-400"><div class="text-center"><div class="text-4xl mb-4">❌</div><div class="text-sm">Error cargando mapa</div></div></div>`
-  }
-}
-
-// Primitives
-function isNum(v) { return typeof v === 'number' && Number.isFinite(v) }
-function sanitize(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
-}
-// Toast helper
-function showNotification(message, type = 'info') {
-  const n = document.createElement('div')
-  n.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all transform translate-x-full ${
-    type === 'success' ? 'success-message' : type === 'error' ? 'error-message' : 'glass-card'
-  }`
-  n.innerHTML = `<div class="flex items-center gap-3"><div class="text-xl">${
-    type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'
-  }</div><span class="font-medium">${sanitize(message)}</span></div>`
-  document.body.appendChild(n)
-  setTimeout(() => n.style.transform = 'translateX(0)', 50)
-  setTimeout(() => { n.style.transform = 'translateX(120%)'; setTimeout(() => n.remove(), 300) }, 3000)
 }
