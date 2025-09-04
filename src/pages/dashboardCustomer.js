@@ -1,5 +1,5 @@
 // src/pages/dashboardCustomer.js
-// Minimal English comments for clarity. No logic changes.
+
 import { CompanyAPI } from '../services/company.service.js'
 
 const state = {
