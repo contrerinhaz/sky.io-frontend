@@ -11,7 +11,14 @@ function apiBase() {
   const b = String(API_BASE || '/api').replace(/\/+$/,'')
   return b.endsWith('/api') ? b : (b + '/api')
 }
-
+function getAuthHeaders() {
+  const t = localStorage.getItem('auth_token') || ''
+  return {
+    Accept: 'application/json',
+    ...(t ? { Authorization: `Bearer ${t}` } : {}),
+    'x-user-id': String(getUserId())
+  }
+}
 
 // Persistencia local solo para UI si el backend falla
 const HISTORY_LIMIT = 50
@@ -244,10 +251,7 @@ function renderAdvResult(res, fallbackActivity) {
 // ===== historial (UI + llamadas backend) =====
 async function fetchHistorySQL(companyId, limit = 50) {
   const res = await fetch(`${apiBase()}/companies/${encodeURIComponent(companyId)}/history?limit=${limit}`, {
-    headers: {
-      'Accept': 'application/json',
-      'x-user-id': String(getUserId())
-    }
+    headers: getAuthHeaders()
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const json = await res.json().catch(() => ({}))
@@ -256,7 +260,7 @@ async function fetchHistorySQL(companyId, limit = 50) {
 async function clearHistorySQL(companyId) {
   const res = await fetch(`${apiBase()}/companies/${encodeURIComponent(companyId)}/history`, {
     method: 'DELETE',
-    headers: { 'x-user-id': String(getUserId()) }
+    headers: getAuthHeaders()
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json().catch(() => ({}))
@@ -302,7 +306,7 @@ async function openHistoryModal(companyId) {
   let items = []
   let error = null
   try {
-    items = await fetchHistorySQL(companyId, 50)          // ← del backend, filtrado por x-user-id
+    items = await fetchHistorySQL(companyId, 50)          // ← del backend, filtrado por token/x-user-id
   } catch (e) {
     error = e?.message || 'Error cargando historial'
     // fallback local si algo falla
@@ -368,11 +372,19 @@ async function openHistoryModal(companyId) {
   const clearBtn = modal.querySelector('#clearHist')
   if (clearBtn) {
     clearBtn.addEventListener('click', async () => {
+      const ok = window.confirm('¿Seguro que deseas borrar TODO el historial? Esta acción no se puede deshacer.')
+      if (!ok) return
+      clearBtn.disabled = true
+      clearBtn.textContent = 'Borrando...'
       try {
         await clearHistorySQL(companyId)
-      } catch {
-        // si el backend falla, limpia local
+        // también limpiamos el fallback local por coherencia
         localStorage.removeItem(historyKey(companyId))
+        showNotification('Historial borrado', 'success')
+      } catch {
+        // si el backend falla, al menos limpia local
+        localStorage.removeItem(historyKey(companyId))
+        showNotification('No se pudo borrar en el servidor. Se limpió el historial local.', 'error')
       }
       close()
       openHistoryModal(companyId)
@@ -513,7 +525,7 @@ function renderWeather(w) {
 }
 function renderQuickRules(rules) {
   if (!Array.isArray(rules) || rules.length === 0) {
-    return `<div class="text-center text-gray-400 py-8"><div class="text-4xl mb-4">✅</div><div>Condiciones normales de trabajo</div><div class="text-sm mt-2">Seguir procedimientos estándar</div></div>`
+    return `<div class="text-center text-gray-400 py-8"><div class="text-4l mb-4">✅</div><div>Condiciones normales de trabajo</div><div class="text-sm mt-2">Seguir procedimientos estándar</div></div>`
   }
   return `
     <div class="space-y-4">
