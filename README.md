@@ -45,7 +45,7 @@ Sky.io is a sophisticated web application that provides businesses with weather-
 
 ## 📁 Project Structure
 
-\`\`\`
+```
 sky.io/
 ├── index.html                 # Main application entry point
 ├── src/
@@ -72,7 +72,7 @@ sky.io/
 │       └── style.css         # Custom styles
 ├── package.json              # Dependencies and scripts
 └── README.md                # Project documentation
-\`\`\`
+```
 
 ## 🚀 Getting Started
 
